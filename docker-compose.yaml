@@ -1,0 +1,22 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres-user
+      POSTGRES_PASSWORD: postgres-password
+      POSTGRES_DB: qronotrack-api-users
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qronotrack-api-network
+
+
+  
+volumes:
+  postgres_data:
+
+networks:
+  qronotrack-api-network:
