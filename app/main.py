@@ -30,6 +30,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ajout de la route racine
+@app.get("/")
+async def root():
+    return {
+        "message": "Bienvenue sur l'API Acces-Residence de Genetics",
+        "status": "online",
+        "version": "1.0.0",
+        "documentation": "/docs"
+    }
+
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(data.router)
