@@ -89,12 +89,19 @@ async def validate_qr_code(
 @router.get("/all", response_model=List[FormDataResponse])
 async def get_all_forms(
     db: Annotated[Session, Depends(get_db)],
-    __current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
     skip: int = 0,
     limit: int = 100
 ):
-    forms = db.query(FormData).offset(skip).limit(limit).all()
+    forms = (
+        db.query(FormData)
+        .filter(FormData.user_id == current_user.id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     return forms
+
 
 @router.get("/{form_id}", response_model=FormDataResponse)
 async def get_form(
