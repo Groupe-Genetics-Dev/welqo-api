@@ -5,24 +5,26 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.oauth2 import get_current_user
 from app.schemas.data import (
     FormDataCreate,
     FormDataResponse,
     QRValidationResponse,
-    QRValidationData, 
+    QRValidationData,
     FormDataUpdate
 )
 from app.models.data import FormData
 from app.postgres_connect import get_db
 from app.utils import generate_qr_code_base64, generate_qr_content
+from app.models.data import User
 
 router = APIRouter(prefix="/forms", tags=["Form Data"])
-
 
 @router.post("/create-form", response_model=FormDataResponse, status_code=status.HTTP_201_CREATED)
 async def create_form_data(
     form_data: FormDataCreate,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     existing_form = db.query(FormData).filter_by(phone=form_data.phone).first()
     if existing_form:
@@ -41,7 +43,8 @@ async def create_form_data(
         phone=form_data.phone,
         qr_code_data=qr_code_base64,
         created_at=created_at,
-        expires_at=expires_at
+        expires_at=expires_at,
+        user_id=current_user.id
     )
 
     db.add(new_form)
@@ -49,12 +52,20 @@ async def create_form_data(
     db.refresh(new_form)
 
     return new_form
- 
+
+@router.get("/user-forms", response_model=List[FormDataResponse])
+async def get_user_forms(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    forms = db.query(FormData).filter(FormData.user_id == current_user.id).all()
+    return forms
 
 @router.get("/validate-qr-code", response_model=QRValidationResponse)
 async def validate_qr_code(
     qr_data: Annotated[str, Query(..., description="Donnée QR encodée (ex: base64)")],
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
     form = db.query(FormData).filter_by(qr_code_data=qr_data).first()
 
@@ -75,35 +86,35 @@ async def validate_qr_code(
         )
     )
 
-
 @router.get("/all", response_model=List[FormDataResponse])
 async def get_all_forms(
+    db: Annotated[Session, Depends(get_db)],
+    __current_user: Annotated[User, Depends(get_current_user)],
     skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
+    limit: int = 100
 ):
     forms = db.query(FormData).offset(skip).limit(limit).all()
     return forms
 
-
 @router.get("/{form_id}", response_model=FormDataResponse)
 async def get_form(
     form_id: UUID,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
-    form = db.query(FormData).filter(FormData.id == form_id).first()
+    form = db.query(FormData).filter(FormData.id == form_id, FormData.user_id == current_user.id).first()
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
     return form
 
-# Endpoint pour mettre à jour un formulaire
 @router.put("/{form_id}", response_model=FormDataResponse)
 async def update_form(
     form_id: UUID,
     form_data: FormDataUpdate,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
-    form = db.query(FormData).filter(FormData.id == form_id).first()
+    form = db.query(FormData).filter(FormData.id == form_id, FormData.user_id == current_user.id).first()
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
 
@@ -114,13 +125,14 @@ async def update_form(
     db.refresh(form)
     return form
 
-# Endpoint pour supprimer un formulaire
+
 @router.delete("/{form_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_form(
     form_id: UUID,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
-    form = db.query(FormData).filter(FormData.id == form_id).first()
+    form = db.query(FormData).filter(FormData.id == form_id, FormData.user_id == current_user.id).first()
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
 
@@ -128,18 +140,17 @@ async def delete_form(
     db.commit()
     return {"message": "Formulaire supprimé avec succès"}
 
-# Endpoint pour renouveler un QR code
 @router.post("/{form_id}/renew", response_model=FormDataResponse)
 async def renew_qr_code(
     form_id: UUID,
     duration_minutes: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
 ):
-    form = db.query(FormData).filter(FormData.id == form_id).first()
+    form = db.query(FormData).filter(FormData.id == form_id, FormData.user_id == current_user.id).first()
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
 
-    # Générer un nouveau contenu QR et mettre à jour expires_at
     qr_content = generate_qr_content(form.name, form.phone, duration_minutes)
     form.qr_code_data = generate_qr_code_base64(qr_content)
     form.expires_at = datetime.now() + timedelta(minutes=duration_minutes)

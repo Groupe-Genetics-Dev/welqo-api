@@ -1,37 +1,52 @@
-from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from sqlalchemy import URL
+from urllib.parse import  urlparse
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
-
-    postgres_username: str
-    postgres_password: str
-    postgres_host: str
-    postgres_port: int = 5432
-    postgres_database: str
-
+    model_config = SettingsConfigDict(env_file=".env",  extra="allow")
+    
+    postgres_url: str 
+    access_token_expire_minutes: int = 30
     secret_key: str
     algorithm: str = "HS256"
 
     @property
+    def postgres_username(self) -> str:
+        parsed = urlparse(self.postgres_url)
+        return parsed.username or ""
+    
+    @property
+    def postgres_password(self) -> str:
+        parsed = urlparse(self.postgres_url)
+        return parsed.password or ""
+    
+    @property
+    def postgres_host(self) -> str:
+        parsed = urlparse(self.postgres_url)
+        return parsed.hostname or ""
+    
+    @property
+    def postgres_port(self) -> int:
+        parsed = urlparse(self.postgres_url)
+        return parsed.port or 5432
+    
+    @property
+    def postgres_database(self) -> str:
+        parsed = urlparse(self.postgres_url)
+        path = parsed.path
+        if path.startswith('/'):
+            path = path[1:]
+        return path
+    
+    
+    @property
     def postgres_database_url(self) -> str:
-        url = URL.create(
-            drivername="postgresql+psycopg2",
-            username=self.postgres_username,
-            password=self.postgres_password,
-            host=self.postgres_host,
-            port=self.postgres_port,
-            database=self.postgres_database
-        )
-        return url.render_as_string(hide_password=False)
+        return self.postgres_url
+    
 
 
-@lru_cache
 def get_settings() -> Settings:
     return Settings()
-
 
 settings = get_settings()
 
