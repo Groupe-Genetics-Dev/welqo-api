@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.oauth2 import get_current_user
 from app.schemas.data import (
@@ -95,12 +95,14 @@ async def get_all_forms(
 ):
     forms = (
         db.query(FormData)
+        .options(joinedload(FormData.user)) 
         .filter(FormData.user_id == current_user.id)
         .offset(skip)
         .limit(limit)
         .all()
     )
     return forms
+
 
 
 @router.get("/{form_id}", response_model=FormDataResponse)

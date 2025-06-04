@@ -4,6 +4,8 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator
 from typing import Optional
 
+from app.schemas.user import UserOut
+
 class FormDataCreate(BaseModel):
     name: str
     phone: str
@@ -28,6 +30,7 @@ class FormDataResponse(BaseModel):
     qr_code_data: Optional[str]
     created_at: datetime
     expires_at: datetime
+    user: UserOut
 
     class Config:
         from_attributes = True
