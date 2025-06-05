@@ -104,6 +104,13 @@ async def get_all_forms(
     return forms
 
 
+@router.get("/qr/{form_id}", response_model=FormDataResponse)
+async def get_form_public(form_id: UUID, db: Session = Depends(get_db)):
+    form = db.query(FormData).filter(FormData.id == form_id).first()
+    if not form:
+        raise HTTPException(status_code=404, detail="Formulaire non trouvé")
+    return form
+
 
 @router.get("/{form_id}", response_model=FormDataResponse)
 async def get_form(
