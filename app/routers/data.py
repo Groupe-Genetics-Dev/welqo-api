@@ -11,7 +11,9 @@ from app.schemas.data import (
     FormDataResponse,
     QRValidationResponse,
     QRValidationData,
-    FormDataUpdate
+    FormDataUpdate,
+    UserInfo,
+    VisitorInfo
 )
 from app.models.data import FormData
 from app.postgres_connect import get_db
@@ -26,21 +28,29 @@ async def create_form_data(
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)]
 ):
-    existing_form = db.query(FormData).filter_by(phone=form_data.phone).first()
+    existing_form = db.query(FormData).filter_by(phone_number=form_data.phone_number).first()
     if existing_form:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Un formulaire avec le numéro {form_data.phone} existe déjà."
+            detail=f"Un formulaire avec le numéro {form_data.phone_number} existe déjà."
         )
 
-    qr_content = generate_qr_content(form_data.name, form_data.phone, form_data.duration_minutes)
+    qr_content = generate_qr_content(
+        user_name=current_user.name,
+        user_phone=current_user.phone_number,
+        user_appartement=current_user.appartement,
+        visitor_name=form_data.name,
+        visitor_phone=form_data.phone_number,
+        duration_minutes=form_data.duration_minutes
+    )
+
     qr_code_base64 = generate_qr_code_base64(qr_content)
     created_at = datetime.now()
     expires_at = created_at + timedelta(minutes=form_data.duration_minutes)
 
     new_form = FormData(
         name=form_data.name,
-        phone=form_data.phone,
+        phone_number=form_data.phone_number,
         qr_code_data=qr_code_base64,
         created_at=created_at,
         expires_at=expires_at,
@@ -64,8 +74,7 @@ async def get_user_forms(
 @router.get("/validate-qr-code", response_model=QRValidationResponse)
 async def validate_qr_code(
     qr_data: Annotated[str, Query(..., description="Donnée QR encodée (ex: base64)")],
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)]
+    db: Session = Depends(get_db)
 ):
     form = db.query(FormData).filter_by(qr_code_data=qr_data).first()
 
@@ -75,12 +84,23 @@ async def validate_qr_code(
     if datetime.now() > form.expires_at:
         return QRValidationResponse(valid=False, message="QR code expiré", data=None)
 
+    user_info = UserInfo(
+        name=form.user.name,
+        phone_number=form.user.phone_number,
+        appartement=form.user.appartement
+    )
+
+    visitor_info = VisitorInfo(
+        name=form.name,
+        phone_number=form.phone_number
+    )
+
     return QRValidationResponse(
         valid=True,
         message="QR code valide.",
         data=QRValidationData(
-            name=form.name,
-            phone=form.phone,
+            user=user_info,
+            visitor=visitor_info,
             created_at=form.created_at,
             expires_at=form.expires_at
         )
@@ -95,7 +115,7 @@ async def get_all_forms(
 ):
     forms = (
         db.query(FormData)
-        .options(joinedload(FormData.user)) 
+        .options(joinedload(FormData.user))
         .filter(FormData.user_id == current_user.id)
         .offset(skip)
         .limit(limit)
@@ -103,13 +123,15 @@ async def get_all_forms(
     )
     return forms
 
+forms_db = {}
 
-@router.get("/qr/{form_id}", response_model=FormDataResponse)
-async def get_form_public(form_id: UUID, db: Session = Depends(get_db)):
-    form = db.query(FormData).filter(FormData.id == form_id).first()
-    if not form:
+@router.get("/{form_id}/share", response_model=FormDataResponse)
+async def share_form(form_id: UUID):
+    if form_id not in forms_db:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
-    return form
+
+    form_data = forms_db[form_id]
+    return form_data
 
 
 @router.get("/{form_id}", response_model=FormDataResponse)
@@ -122,6 +144,7 @@ async def get_form(
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
     return form
+
 
 @router.put("/{form_id}", response_model=FormDataResponse)
 async def update_form(
@@ -156,6 +179,7 @@ async def delete_form(
     db.commit()
     return {"message": "Formulaire supprimé avec succès"}
 
+
 @router.post("/{form_id}/renew", response_model=FormDataResponse)
 async def renew_qr_code(
     form_id: UUID,
@@ -167,7 +191,14 @@ async def renew_qr_code(
     if not form:
         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
 
-    qr_content = generate_qr_content(form.name, form.phone, duration_minutes)
+    qr_content = generate_qr_content(
+        user_name=current_user.name,
+        user_phone=current_user.phone_number,
+        user_appartement=current_user.appartement,
+        visitor_name=form.name,
+        visitor_phone=form.phone_number,
+        duration_minutes=duration_minutes
+    )
     form.qr_code_data = generate_qr_code_base64(qr_content)
     form.expires_at = datetime.now() + timedelta(minutes=duration_minutes)
 

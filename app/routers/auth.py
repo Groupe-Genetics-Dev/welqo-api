@@ -1,38 +1,95 @@
-
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from datetime import  datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-
+from app.config import settings
+from app.oauth2 import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_guard
 from app.postgres_connect import get_db
-from app.models.data import User
+from app.models.data import Attendance, User, Guard
 from app.schemas.token import Token
-from app.oauth2 import create_access_token
 from app.utils import verify
 
+router = APIRouter(tags=["Authentication"])
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-@router.post("/login", response_model=Token)
-async def login_for_access_token(user_credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
-                                 db: Annotated[Session, Depends(get_db)]):
-    user = db.query(User).filter_by(email=user_credentials.username).first()
-
-    if user is None or not verify(user_credentials.password, user.password):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Invalid Credentials")
-
-    access_token = create_access_token(data={
-        "user_id": str(user.id), 
-        "user_name": user.name
-        }
+@router.post("/user/login", response_model=Token)
+async def login_user(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.phone_number == form_data.username).first()
+    if not user or not verify(form_data.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nom d'utilisateur ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return {"access_token": access_token, 
-            "token_type": "bearer",
-            "user_name": user.name
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"user_id": str(user.id), "user_name": user.name}, expires_delta=access_token_expires
+    )
+
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_name": user.name
     }
-    
+
+
+@router.post("/guard/login", response_model=Token)
+async def login_guard(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
+    guard = db.query(Guard).filter(Guard.phone_number == form_data.username).first()
+    if not guard or not verify(form_data.password, guard.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nom d'utilisateur ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Enregistrez l'heure de début de session
+    attendance = Attendance(
+        start_time=datetime.now(),
+        guard_id=guard.id
+    )
+    db.add(attendance)
+    db.commit()
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"guard_id": str(guard.id), "guard_name": guard.name},
+        expires_delta=access_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_name": guard.name
+    }
+
+@router.post("/guard/logout")
+async def logout_guard(
+    current_guard: Guard = Depends(get_current_guard),
+    db: Session = Depends(get_db)
+):
+    # Récupérez la dernière session de connexion du gardien
+    attendance = db.query(Attendance).filter(
+        Attendance.guard_id == current_guard.id,
+        Attendance.end_time == None
+    ).order_by(Attendance.start_time.desc()).first()
+
+    if attendance:
+        # Mettez à jour l'heure de fin de session
+        attendance.end_time = datetime.now()
+        db.commit()
+
+    return {"message": "Déconnexion réussie"}
+
 

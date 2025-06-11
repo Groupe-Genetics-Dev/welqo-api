@@ -11,6 +11,9 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     id:  UUID
+    guard_id: UUID | None = None
+
+
 
     
 

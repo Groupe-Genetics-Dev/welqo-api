@@ -8,10 +8,10 @@ from app.schemas.user import UserOut
 
 class FormDataCreate(BaseModel):
     name: str
-    phone: str
+    phone_number: str
     duration_minutes: int
 
-    @field_validator('phone')
+    @field_validator('phone_number')
     def validate_phone(cls, value: str) -> str:
         patterns = {
             'SN': r'^\+221\d{9}$'
@@ -26,7 +26,7 @@ class FormDataCreate(BaseModel):
 class FormDataResponse(BaseModel):
     id: uuid.UUID
     name: str
-    phone: str
+    phone_number: str
     qr_code_data: Optional[str]
     created_at: datetime
     expires_at: datetime
@@ -35,11 +35,23 @@ class FormDataResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class QRValidationData(BaseModel):
+class UserInfo(BaseModel):
     name: str
-    phone: str
+    phone_number: str
+    appartement: str
+
+class VisitorInfo(BaseModel):
+    name: str
+    phone_number: str
+
+
+class QRValidationData(BaseModel):
+    user: UserInfo
+    visitor: VisitorInfo
     created_at: datetime
     expires_at: datetime
+
+
 
 class QRValidationResponse(BaseModel):
     valid: bool
@@ -48,10 +60,10 @@ class QRValidationResponse(BaseModel):
 
 class FormDataUpdate(BaseModel):
     name: Optional[str] = None
-    phone: Optional[str] = None
+    phone_number: Optional[str] = None  
     duration_minutes: Optional[int] = None
 
-    @field_validator('phone')
+    @field_validator('phone_number')  
     def validate_phone_update(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
@@ -65,4 +77,4 @@ class FormDataUpdate(BaseModel):
                 return value
 
         raise ValueError('Numéro de téléphone invalide. Veuillez inclure l\'indicatif du pays.')
-
+    

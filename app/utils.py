@@ -21,8 +21,10 @@ def generate_qr_code_base64(data: str) -> str:
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-def generate_qr_content(name: str, phone: str, duration_minutes: int) -> str:
-    return f"Name: {name} | Phone: {phone} | Duration: {duration_minutes} minutes"
+
+def generate_qr_content(user_name: str, user_phone: str, user_appartement: str, visitor_name: str, visitor_phone: str, duration_minutes: int) -> str:
+    return f"User Name: {user_name}, User Phone: {user_phone}, User Appartement: {user_appartement}, Visitor Name: {visitor_name}, Visitor Phone: {visitor_phone}, Duration: {duration_minutes} minutes"
+
 
 
 

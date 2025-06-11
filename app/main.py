@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import data, user, auth
+from app.routers import data, user, auth, guard, qrcode
 
 from rich.console import Console
 
@@ -40,8 +40,10 @@ async def root():
         "documentation": "/docs"
     }
 
-app.include_router(auth.router)
-app.include_router(user.router)
-app.include_router(data.router)
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(user.router, prefix="/api/v1")
+app.include_router(data.router, prefix="/api/v1")
+app.include_router(guard.router, prefix="/api/v1")
+app.include_router(qrcode.router, prefix="/api/v1")
 
 
