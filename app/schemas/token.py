@@ -1,6 +1,7 @@
 
 from pydantic import BaseModel
 from uuid import UUID
+from typing import Optional
 
 
 class Token(BaseModel):
@@ -10,9 +11,10 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    id:  UUID
-    guard_id: UUID | None = None
-
+    id: Optional[UUID] = None
+    user_name: Optional[str] = None
+    guard_id: Optional[UUID] = None
+    guard_name: Optional[str] = None
 
 
     

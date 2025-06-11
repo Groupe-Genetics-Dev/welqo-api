@@ -75,6 +75,15 @@ async def get_guard_qr_scans(
 
     return qr_scans
 
+@router.get("/scan-history", response_model=List[GuardQRScanOut])
+async def get_scan_history(
+    db: Session = Depends(get_db),
+    current_guard: Guard = Depends(get_current_guard)
+):
+    qr_scans = db.query(GuardQRScan).filter(GuardQRScan.guard_id == current_guard.id).all()
+
+    return qr_scans
+
 
 
 @router.delete("/{scan_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,18 +1,16 @@
-from fastapi import  Depends, HTTPException, status
-from datetime import datetime, timedelta
+from uuid import UUID
+from fastapi import HTTPException, status, Depends
 from jose import jwt, JWTError
-from typing import Annotated
+from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
-from requests import Session
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.data import Guard, User
-from app.schemas.token import  TokenData
+from app.schemas.token import TokenData
 from app.postgres_connect import get_db
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 
 SECRET_KEY = settings.secret_key
 ALGORITHM = settings.algorithm
@@ -21,33 +19,36 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_access_token(token: str, credentials_exception):
+def verify_access_token(token: str, credentials_exception: HTTPException):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("user_id")
-        user_name: str = payload.get("user_name")
-        guard_id: str = payload.get("guard_id")
-        guard_name: str = payload.get("guard_name")
+        user_id = payload.get("user_id")
+        user_name = payload.get("user_name")
+        guard_id = payload.get("guard_id")
+        guard_name = payload.get("guard_name")
 
         if user_id is None and guard_id is None:
             raise credentials_exception
 
-        token_data = TokenData(id=user_id, user_name=user_name, guard_id=guard_id, guard_name=guard_name)
+        try:
+            user_id = UUID(user_id) if user_id and user_id != "None" else None
+            guard_id = UUID(guard_id) if guard_id and guard_id != "None" else None
+        except ValueError:
+            raise credentials_exception
 
+        token_data = TokenData(id=user_id, user_name=user_name, guard_id=guard_id, guard_name=guard_name)
+        return token_data
     except JWTError:
         raise credentials_exception
 
-    return token_data
-
-
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -66,7 +67,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session 
 
     return user
 
-def get_current_guard(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(get_db)):
+def get_current_guard(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -84,5 +85,3 @@ def get_current_guard(token: Annotated[str, Depends(oauth2_scheme)], db: Session
         raise credentials_exception
 
     return guard
-
-
