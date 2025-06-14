@@ -1,8 +1,12 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
+from enum import Enum
+from sqlalchemy.sql import func
+
+
 
 class Base(DeclarativeBase):
     pass
@@ -70,4 +74,37 @@ class GuardQRScan(Base):
 
     form_data_id = Column(UUID(as_uuid=True), ForeignKey('form_data.id'))
     form_data = relationship("FormData", back_populates="guard_scans")
+
+
+class Owner(Base):
+    __tablename__ = "owners"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    phone_number = Column(String(255), nullable=False, unique=True)
+    password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    logo_path = Column(String(255), nullable=True) 
+
+    reports = relationship("Report", back_populates="owner")
+
+
+class ReportTypeEnum(str, Enum):
+    USER_REPORT = "user_report"
+    QR_CODE_REPORT = "qr_code_report"
+    ACTIVITY_REPORT = "activity_report"
+    SECURITY_REPORT = "security_report"
+    
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    report_type = Column(SQLEnum(ReportTypeEnum), nullable=False)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("owners.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relations
+    owner = relationship("Owner", back_populates="reports")
 

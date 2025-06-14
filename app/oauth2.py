@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models.data import Guard, User
+from app.models.data import Guard, Owner, User
 from app.schemas.token import TokenData
 from app.postgres_connect import get_db
 
@@ -85,3 +85,26 @@ def get_current_guard(token: str = Depends(oauth2_scheme), db: Session = Depends
         raise credentials_exception
 
     return guard
+
+
+def get_current_owner(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Owner:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        owner_id: str = payload.get("owner_id")
+        if owner_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    owner = db.query(Owner).filter(Owner.id == owner_id).first()
+    if owner is None:
+        raise credentials_exception
+    return owner
+
+

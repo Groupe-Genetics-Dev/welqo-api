@@ -13,15 +13,29 @@ router = APIRouter(prefix="/guards", tags=["Guards"])
 
 @router.post("/create-guard", response_model=GuardOut, status_code=status.HTTP_201_CREATED)
 async def create_guard(guard: GuardCreate, db: Session = Depends(get_db)):
+    # Vérifiez si un gardien avec le même numéro de téléphone existe déjà
+    existing_guard = db.query(Guard).filter(Guard.phone_number == guard.phone_number).first()
+    if existing_guard:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un gardien avec ce numéro de téléphone existe déjà."
+        )
+
+    # Hachez le mot de passe avant de le stocker
+    hashed_password = hashed(guard.password)
+
+    # Créez un nouveau gardien
     new_guard = Guard(
         name=guard.name,
-        password=hashed(guard.password),
+        password=hashed_password,
         phone_number=guard.phone_number
     )
 
+    # Ajoutez le nouveau gardien à la base de données
     db.add(new_guard)
     db.commit()
     db.refresh(new_guard)
+
     return new_guard
 
 

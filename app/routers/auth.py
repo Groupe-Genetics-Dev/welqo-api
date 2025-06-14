@@ -7,7 +7,7 @@ from typing import Annotated
 from app.config import settings
 from app.oauth2 import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_guard
 from app.postgres_connect import get_db
-from app.models.data import Attendance, User, Guard
+from app.models.data import Attendance, Owner, User, Guard
 from app.schemas.token import Token
 from app.utils import verify
 
@@ -79,17 +79,41 @@ async def logout_guard(
     current_guard: Guard = Depends(get_current_guard),
     db: Session = Depends(get_db)
 ):
-    # Récupérez la dernière session de connexion du gardien
     attendance = db.query(Attendance).filter(
         Attendance.guard_id == current_guard.id,
         Attendance.end_time == None
     ).order_by(Attendance.start_time.desc()).first()
 
     if attendance:
-        # Mettez à jour l'heure de fin de session
-        attendance.end_time = datetime.now()
+        attendance.end_time = datetime.utcnow()
         db.commit()
 
     return {"message": "Déconnexion réussie"}
+
+
+@router.post("/owner/login", response_model=Token)
+async def login_owner(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
+    owner = db.query(Owner).filter(Owner.phone_number == form_data.username).first()
+    if not owner or not verify(form_data.password, owner.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nom d'utilisateur ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"owner_id": str(owner.id), "owner_name": owner.name},
+        expires_delta=access_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_name": owner.name
+    }
 
 

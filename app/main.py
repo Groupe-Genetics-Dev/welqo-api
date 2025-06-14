@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import data, user, auth, guard, qrcode
+from app.routers import data, user, auth, guard, qrcode, owner, report
 
 from rich.console import Console
 
@@ -12,9 +12,9 @@ console = Console()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    console.print(":banana: [cyan underline] QronoTract-Api  is starting ...[/]")
+    console.print(":banana: [cyan underline] Welqo services  is starting ...[/]")
     yield
-    console.print(":mango: [bold red underline] QronoTract-Api  shutting down ...[/]")
+    console.print(":mango: [bold red underline] Welqo services  shutting down ...[/]")
 
 
 
@@ -45,5 +45,5 @@ app.include_router(user.router, prefix="/api/v1")
 app.include_router(data.router, prefix="/api/v1")
 app.include_router(guard.router, prefix="/api/v1")
 app.include_router(qrcode.router, prefix="/api/v1")
-
-
+app.include_router(owner.router, prefix="/api/v1")
+app.include_router(report.router, prefix="/api/v1")
