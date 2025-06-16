@@ -123,16 +123,6 @@ async def get_all_forms(
     )
     return forms
 
-# forms_db = {}
-
-# @router.get("/{form_id}/share", response_model=FormDataResponse)
-# async def share_form(form_id: UUID):
-#     if form_id not in forms_db:
-#         raise HTTPException(status_code=404, detail="Formulaire non trouvé")
-
-#     form_data = forms_db[form_id]
-#     return form_data
-
 
 @router.get("/{form_id}", response_model=FormDataResponse)
 async def get_form(
