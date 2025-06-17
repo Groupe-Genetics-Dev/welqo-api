@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Enum as SQLEnum
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Enum as SQLEnum, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 from enum import Enum
@@ -65,16 +65,18 @@ class Attendance(Base):
 class GuardQRScan(Base):
     __tablename__ = "guard_qr_scans"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    scan_time = Column(DateTime, default=datetime.now)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     qr_code_data = Column(Text, nullable=False)
+    guard_id = Column(UUID(as_uuid=True), ForeignKey("guards.id"), nullable=False)
+    form_data_id = Column(UUID(as_uuid=True), ForeignKey("form_data.id"), nullable=True)
+    confirmed = Column(Boolean, nullable=True)  
+    scanned_at = Column(DateTime, default=func.now(), nullable=False)  
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
-    guard_id = Column(UUID(as_uuid=True), ForeignKey('guards.id'))
+    # Relationships
     guard = relationship("Guard", back_populates="qr_scans")
-
-    form_data_id = Column(UUID(as_uuid=True), ForeignKey('form_data.id'))
     form_data = relationship("FormData", back_populates="guard_scans")
-
 
 class Owner(Base):
     __tablename__ = "owners"
