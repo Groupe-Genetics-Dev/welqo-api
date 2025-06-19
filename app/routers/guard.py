@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 
+from app.oauth2 import get_current_guard
 from app.schemas.guard import GuardCreate, GuardOut, GuardQRScanOut, GuardUpdate
 from app.models.data import Guard, GuardQRScan
 from app.postgres_connect import get_db
@@ -43,6 +44,25 @@ async def create_guard(guard: GuardCreate, db: Session = Depends(get_db)):
 async def get_all_guards(db: Session = Depends(get_db)):
     guards = db.query(Guard).all()
     return guards
+
+
+# CORRIGÉ : Déplacé l'endpoint /profile AVANT l'endpoint /{guard_id}
+@router.get("/profile", response_model=GuardOut)
+async def get_guard_profile(
+    current_guard: Annotated[Guard, Depends(get_current_guard)],
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve the profile of the currently authenticated guard.
+    """
+    # Récupérer les données complètes du gardien depuis la base de données
+    guard = db.query(Guard).filter(Guard.id == current_guard.id).first()
+    if not guard:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Profil du gardien non trouvé"
+        )
+    return guard
 
 
 @router.get("/{guard_id}", response_model=GuardOut)
@@ -91,4 +111,4 @@ async def get_guard_qr_scans(
     qr_scans = db.query(GuardQRScan).filter(GuardQRScan.guard_id == guard_id).all()
 
     return qr_scans
-
+    

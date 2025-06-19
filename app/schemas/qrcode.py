@@ -30,16 +30,13 @@ class QRScanResponse(BaseModel):
 class QRConfirmRequest(BaseModel):
     qr_code_data: str
     confirmed: bool
-    scan_data: dict
 
 class QRConfirmResponse(BaseModel):
     success: bool
     message: str
-    scan_id: str = None
+    scan_id: Optional[str] = None
 
     
-
-
 class GuardQRScanOut(BaseModel):
     id: UUID
     qr_code_data: str
