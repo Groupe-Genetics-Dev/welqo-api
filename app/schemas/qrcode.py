@@ -3,9 +3,8 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-
 class QRScanRequest(BaseModel):
-    qr_code_data: str
+    form_id: UUID
 
 class UserInfo(BaseModel):
     name: str
@@ -19,8 +18,9 @@ class VisitorInfo(BaseModel):
 class QRScanData(BaseModel):
     user: UserInfo
     visitor: VisitorInfo
-    created_at: str
-    expires_at: str
+    created_at: datetime
+    expires_at: datetime
+    form_id: UUID
 
 class QRScanResponse(BaseModel):
     valid: bool
@@ -28,26 +28,22 @@ class QRScanResponse(BaseModel):
     data: Optional[QRScanData] = None
 
 class QRConfirmRequest(BaseModel):
-    qr_code_data: str
+    form_id: UUID
     confirmed: bool
 
 class QRConfirmResponse(BaseModel):
     success: bool
     message: str
-    scan_id: Optional[str] = None
+    scan_id: Optional[UUID] = None
 
-    
 class GuardQRScanOut(BaseModel):
     id: UUID
-    qr_code_data: str
+    form_id: UUID
     guard_id: UUID
-    form_data_id: Optional[UUID] = None
     confirmed: Optional[bool] = None
     scanned_at: datetime
     created_at: datetime
     updated_at: datetime
-    
-    # Include additional fields from relationships if needed
     visitor_name: Optional[str] = None
     visitor_phone: Optional[str] = None
     resident_name: Optional[str] = None
@@ -58,22 +54,19 @@ class GuardQRScanOut(BaseModel):
 
     class Config:
         from_attributes = True
-        
+
     @classmethod
     def from_orm_with_details(cls, scan_obj):
-        """Create schema with additional details from form_data relationship"""
         data = {
             "id": scan_obj.id,
-            "qr_code_data": scan_obj.qr_code_data,
+            "form_id": scan_obj.form_data_id,
             "guard_id": scan_obj.guard_id,
-            "form_data_id": scan_obj.form_data_id,
             "confirmed": scan_obj.confirmed,
             "scanned_at": scan_obj.scanned_at,
             "created_at": scan_obj.created_at,
             "updated_at": scan_obj.updated_at,
         }
-        
-        # Add form data details if available
+
         if scan_obj.form_data:
             data.update({
                 "visitor_name": scan_obj.form_data.name,
@@ -81,14 +74,13 @@ class GuardQRScanOut(BaseModel):
                 "expires_at": scan_obj.form_data.expires_at,
                 "valid": datetime.now() <= scan_obj.form_data.expires_at,
             })
-            
-            # Add resident details if available
+
             if scan_obj.form_data.user:
                 data.update({
                     "resident_name": scan_obj.form_data.user.name,
                     "resident_phone": scan_obj.form_data.user.phone_number,
                     "resident_apartment": scan_obj.form_data.user.appartement,
                 })
-        
+
         return cls(**data)
-    
+
