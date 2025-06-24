@@ -20,17 +20,12 @@ class UserOut(BaseModel):
 
 
 class ChangePassword(BaseModel):
-    phone_number: EmailStr
+    phone_number: str
     old_password: str
     new_password: str
 
 
-class ForgotPassword(BaseModel):
-    phone_number: EmailStr
-    new_password: str
 
-    class Config:
-       from_attributes = True
 
 
 class UserUpdate(BaseModel):

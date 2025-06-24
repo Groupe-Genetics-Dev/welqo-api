@@ -19,5 +19,16 @@ class OwnerOut(BaseModel):
         from_attributes = True
 
 
+ 
+class ForgotPasswordRequest(BaseModel):
+    phone_number: str
 
+class ResetPasswordRequest(BaseModel):
+    phone_number: str
+    new_password: str
+    confirm_password: str
 
+class MessageResponse(BaseModel):
+    message: str
+
+    

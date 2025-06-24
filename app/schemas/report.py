@@ -31,3 +31,13 @@ class ReportOut(BaseModel):
         from_attributes = True
 
 
+class StatisticsOut(BaseModel):
+    total_users: int
+    total_qr_codes: int
+    active_qr_codes: int
+    total_scans: int
+    users_this_month: int
+    qr_codes_this_month: int
+
+   
+   

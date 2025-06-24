@@ -7,6 +7,7 @@ from app.oauth2 import get_current_guard
 from app.schemas.guard import GuardCreate, GuardOut, GuardQRScanOut, GuardUpdate
 from app.models.data import Guard, GuardQRScan
 from app.postgres_connect import get_db
+from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
 from app.utils import hashed
 
 
@@ -63,6 +64,35 @@ async def get_guard_profile(
             detail="Profil du gardien non trouvé"
         )
     return guard
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # Vérifiez si le numéro de téléphone existe dans la base de données
+    owner = db.query(Guard).filter(Guard.phone_number == request.phone_number).first()
+    if not owner:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
+
+    return {"message": "Numéro de téléphone valide. Veuillez saisir votre nouveau mot de passe."}
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    # Vérifiez si le numéro de téléphone existe dans la base de données
+    owner = db.query(Guard).filter(Guard.phone_number == request.phone_number).first()
+    if not owner:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
+
+    # Vérifiez si les mots de passe correspondent
+    if request.new_password != request.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Les mots de passe ne correspondent pas")
+
+    # Réinitialiser le mot de passe
+    owner.password = hashed(request.new_password)
+    db.commit()
+    db.refresh(owner)
+
+    return {"message": "Mot de passe réinitialisé avec succès"}
+
 
 
 @router.get("/{guard_id}", response_model=GuardOut)

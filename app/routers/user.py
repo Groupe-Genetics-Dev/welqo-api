@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.schemas.user import UserCreate, UserOut, ChangePassword, ForgotPassword
+from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
+from app.schemas.user import UserCreate, UserOut, ChangePassword
 from app.models.data import User
 from app.postgres_connect import get_db
 from app.utils import hashed, verify
@@ -58,18 +59,35 @@ async def change_password(data: ChangePassword, db: Annotated[Session, Depends(g
     db.commit()
     return {"message": "Mot de passe mis à jour avec succès."}
 
-@router.post("/forgot-password", status_code=status.HTTP_200_OK)
-async def forgot_password(data: ForgotPassword, db: Annotated[Session, Depends(get_db)]):
-    user = db.query(User).filter_by(phone_number=data.phone_number).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Numéro de téléphone non trouvé."
-        )
 
-    user.password = hashed(data.new_password)
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    # Vérifiez si le numéro de téléphone existe dans la base de données
+    owner = db.query(User).filter(User.phone_number == request.phone_number).first()
+    if not owner:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
+
+    return {"message": "Numéro de téléphone valide. Veuillez saisir votre nouveau mot de passe."}
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    # Vérifiez si le numéro de téléphone existe dans la base de données
+    owner = db.query(User).filter(User.phone_number == request.phone_number).first()
+    if not owner:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
+
+    # Vérifiez si les mots de passe correspondent
+    if request.new_password != request.confirm_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Les mots de passe ne correspondent pas")
+
+    # Réinitialiser le mot de passe
+    owner.password = hashed(request.new_password)
     db.commit()
-    return {"message": "Mot de passe réinitialisé avec succès."}
+    db.refresh(owner)
+
+    return {"message": "Mot de passe réinitialisé avec succès"}
+
+
 
 @router.get("/all", response_model=list[UserOut])
 async def get_all_users(db: Annotated[Session, Depends(get_db)]):
