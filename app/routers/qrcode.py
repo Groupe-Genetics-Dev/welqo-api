@@ -26,6 +26,16 @@ async def scan_qr_code(
     if not form.user:
         return QRScanResponse(valid=False, message="Données utilisateur manquantes")
 
+    # Vérifier si le QR code a déjà été scanné et confirmé ou rejeté
+    existing_scan = db.query(GuardQRScan).filter(
+        GuardQRScan.form_data_id == qr_scan.form_id,
+        GuardQRScan.confirmed.isnot(None)
+    ).first()
+
+    if existing_scan:
+        action = "validé" if existing_scan.confirmed else "rejeté"
+        return QRScanResponse(valid=False, message=f"Le code QR est déjà {action}")
+
     scan_data = QRScanData(
         user=UserInfo(
             name=form.user.name,
