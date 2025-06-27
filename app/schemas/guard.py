@@ -1,10 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from uuid import UUID
 from typing import Optional
 
 class GuardBase(BaseModel):
     name: str
+    email: EmailStr
     phone_number: str
 
 class GuardCreate(GuardBase):

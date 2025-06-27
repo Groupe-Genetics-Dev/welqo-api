@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
@@ -6,6 +6,7 @@ from typing import Optional
 class OwnerCreate(BaseModel):
     name: str
     phone_number: str
+    email: EmailStr
     password: str
 
 class OwnerOut(BaseModel):

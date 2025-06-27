@@ -30,7 +30,8 @@ async def create_guard(guard: GuardCreate, db: Session = Depends(get_db)):
     new_guard = Guard(
         name=guard.name,
         password=hashed_password,
-        phone_number=guard.phone_number
+        phone_number=guard.phone_number,
+        email=guard.email
     )
 
     # Ajoutez le nouveau gardien à la base de données
