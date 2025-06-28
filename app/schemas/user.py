@@ -25,12 +25,12 @@ class ChangePassword(BaseModel):
     new_password: str
 
 
-
-
-
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     phone_number: Optional[str] = None
     appartement: Optional[str] = None
 
+
+# class AlertRequest(BaseModel):
+#     alert_details: str
 

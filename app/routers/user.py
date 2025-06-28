@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
-from app.schemas.user import UserCreate, UserOut, ChangePassword
-from app.models.data import User
+from app.schemas.user import AlertRequest, UserCreate, UserOut, ChangePassword
+from app.models.data import Guard, Owner, User
 from app.postgres_connect import get_db
-from app.utils import hashed, verify
-from app.oauth2 import get_current_user
+from app.utils import hashed, send_alert_email, verify
+from app.oauth2 import get_current_guard, get_current_owner, get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -74,11 +74,13 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
     # Vérifiez si le numéro de téléphone existe dans la base de données
     owner = db.query(User).filter(User.phone_number == request.phone_number).first()
     if not owner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                            detail="Numéro de téléphone non trouvé")
 
     # Vérifiez si les mots de passe correspondent
     if request.new_password != request.confirm_password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Les mots de passe ne correspondent pas")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail="Les mots de passe ne correspondent pas")
 
     # Réinitialiser le mot de passe
     owner.password = hashed(request.new_password)
@@ -93,4 +95,55 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 async def get_all_users(db: Annotated[Session, Depends(get_db)]):
     users = db.query(User).all()
     return users
+
+# @router.post("/send-alert", status_code=status.HTTP_200_OK)
+# async def send_alert(
+#     alert_request: AlertRequest,
+#     db: Annotated[Session, Depends(get_db)],
+#     current_user: User = Depends(get_current_user),
+#     current_guard: Guard = Depends(get_current_guard)
+# ):
+#     try:
+#         if not current_user:
+#             raise HTTPException(
+#                 status_code=status.HTTP_401_UNAUTHORIZED,
+#                 detail="Seuls les utilisateurs peuvent envoyer une alerte."
+#             )
+
+#         # Récupérer tous les syndic (Owners) enregistrés
+#         owners = db.query(Owner).all()
+#         if not owners:
+#             raise HTTPException(
+#                 status_code=status.HTTP_404_NOT_FOUND,
+#                 detail="Aucun syndic trouvé pour recevoir l'alerte."
+#             )
+
+#         if not current_guard:
+#             raise HTTPException(
+#                 status_code=status.HTTP_403_FORBIDDEN,
+#                 detail="Aucun gardien connecté au moment de l'envoi."
+#             )
+
+#         # Liste des destinataires : 1 gardien connecté + tous les syndics
+#         recipients = [current_guard] + owners
+
+#         for recipient in recipients:
+#             send_alert_email(
+#                 to=recipient.email,
+#                 name=recipient.name,
+#                 role=recipient.__class__.__name__,
+#                 resident_name=current_user.name,
+#                 resident_phone=current_user.phone_number,
+#                 resident_appartement=current_user.appartement,
+#                 alert_details=alert_request.alert_details
+#             )
+
+#         return {"message": "Alertes envoyées avec succès."}
+
+#     except SQLAlchemyError as e:
+#         db.rollback()
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Erreur de base de données: {str(e)}"
+#         )
 

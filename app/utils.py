@@ -7,8 +7,9 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
 from datetime import datetime
+import requests
+import os
 
-from app.schemas.report import ReportType
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -201,4 +202,47 @@ def get_conclusion_by_type(report_type, summary):
     elif report_type == "security_report":
         return f"Analyse sécurité: {summary.get('security_score', 'N/A')} - {summary.get('suspicious_scans', 0)} incidents détectés."
 
+
+
+# def send_alert_email(to, name, role, resident_name, resident_phone, resident_appartement, alert_details):
+#     api_key = os.getenv('SENDINBLUE_API_KEY')
+#     url = 'https://api.brevo.com/v3/smtp/email'
+
+#     subject = f"🚨 Alerte : Problème signalé par {resident_name}"
+#     html_content = f"""
+#     <div>
+#         <h2>Bonjour {name},</h2>
+#         <p>Une alerte a été signalée par le résident {resident_name} (Tél: {resident_phone}, Appartement: {resident_appartement}).</p>
+#         <p><strong>Détails de l'alerte :</strong> {alert_details}</p>
+#         <p>Veuillez prendre les mesures nécessaires.</p>
+#         <p>Cordialement,<br/>L'équipe de gestion</p>
+#     </div>
+#     """
+
+#     email_data = {
+#         "sender": {
+#             "name": "Welqo Alerte",
+#             "email": "diallo30amadoukorka@gmail.com"
+#         },
+#         "to": [
+#             {
+#                 "email": to
+#             }
+#         ],
+#         "subject": subject,
+#         "htmlContent": html_content
+#     }
+
+#     headers = {
+#         'Content-Type': 'application/json',
+#         'api-key': api_key
+#     }
+
+#     try:
+#         response = requests.post(url, json=email_data, headers=headers)
+#         response.raise_for_status()
+#         return response.json()
+#     except requests.exceptions.RequestException as error:
+#         print(f"Erreur lors de l'envoi de l'email à {role} {name} :", error)
+#         raise error
 
