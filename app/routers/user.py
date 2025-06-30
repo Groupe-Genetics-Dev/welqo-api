@@ -7,8 +7,8 @@ from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPassw
 from app.schemas.user import  UserCreate, UserOut, ChangePassword
 from app.models.data import  User
 from app.postgres_connect import get_db
-from app.utils import hashed, verify
-from app.oauth2 import get_current_user
+from app.utils import hashed,  verify
+from app.oauth2 import  get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

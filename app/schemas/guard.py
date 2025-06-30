@@ -5,7 +5,7 @@ from typing import Optional
 
 class GuardBase(BaseModel):
     name: str
-    email: EmailStr
+    email: EmailStr | None = None
     phone_number: str
 
 class GuardCreate(GuardBase):

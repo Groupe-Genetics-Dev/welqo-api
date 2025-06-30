@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     secret_key: str
     algorithm: str = "HS256"
+    cors_origin:str="*"
 
     @property
     def postgres_username(self) -> str:

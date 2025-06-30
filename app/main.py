@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import data, user, auth, guard, qrcode, owner, report
 
 from rich.console import Console
-
+from app.config import settings
 console = Console()
 
 
@@ -20,7 +20,8 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-origins = ["*"]
+# origins = ["http://95.111.231.146"]
+origins =settings.cors_origin.split(",")
 
 app.add_middleware(
     CORSMiddleware,
