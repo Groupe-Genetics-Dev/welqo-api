@@ -3,3 +3,9 @@ venv/
 .idea/
 .env
 .venv/
+
+uploaded_logos/*
+!uploaded_logos/.gitkeep
+
+generated_reports/*
+!generated_reports/.gitkeep
