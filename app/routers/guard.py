@@ -2,9 +2,10 @@ from typing import Annotated, List
 from uuid import UUID
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from app.oauth2 import get_current_guard
-from app.schemas.guard import GuardCreate, GuardOut, GuardQRScanOut, GuardUpdate
+from app.schemas.guard import AttendanceOut, GuardAttendanceOut, GuardCreate, GuardOut, GuardQRScanOut, GuardUpdate
 from app.models.data import Guard, GuardQRScan
 from app.postgres_connect import get_db
 from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
@@ -143,3 +144,36 @@ async def get_guard_qr_scans(
 
     return qr_scans
     
+@router.get("/guards/attendances", response_model=List[GuardAttendanceOut])
+def get_all_guard_attendances(db: Session = Depends(get_db)):
+    guards = db.query(Guard).options(joinedload(Guard.attendances)).all()
+
+    return [
+        GuardAttendanceOut(
+            guard_id=guard.id,
+            guard_name=guard.name,
+            attendances=[
+                AttendanceOut(
+                    id=att.id,
+                    start_time=att.start_time,
+                    end_time=att.end_time
+                ) for att in guard.attendances
+            ]
+        ) for guard in guards
+    ]
+
+
+
+@router.get("/{guard_id}/attendances", response_model=GuardAttendanceOut)
+def get_attendance_for_guard(guard_id: UUID, db: Session = Depends(get_db)):
+    guard = db.query(Guard).options(joinedload(Guard.attendances)).filter(Guard.id == guard_id).first()
+    if not guard:
+        raise HTTPException(status_code=404, detail="Gardien non trouvé")
+
+    return GuardAttendanceOut(
+        guard_id=guard.id,
+        guard_name=guard.name,
+        attendances=guard.attendances
+    )
+
+

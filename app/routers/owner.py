@@ -82,6 +82,11 @@ def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db))
 
     return {"message": "Mot de passe réinitialisé avec succès"}
 
+@router.get("/all", response_model=List[OwnerOut])
+def get_all_owners(db: Session = Depends(get_db)):
+    owners = db.query(Owner).all()
+    return owners
+
 
 
 @router.get("/my-reports", response_model=List[ReportOut])
@@ -113,10 +118,6 @@ def download_report(
         filename=os.path.basename(report.file_path),
         media_type='application/pdf'
     )
-
-
-
-
 
 
 

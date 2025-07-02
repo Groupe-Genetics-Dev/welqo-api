@@ -2,6 +2,8 @@ from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from uuid import UUID
 from typing import Optional
+from typing import List
+
 
 class GuardBase(BaseModel):
     name: str
@@ -34,3 +36,17 @@ class GuardUpdate(BaseModel):
     phone_number: Optional[str] = None
 
 
+class AttendanceOut(BaseModel):
+    id: UUID
+    start_time: datetime
+    end_time: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class GuardAttendanceOut(BaseModel):
+    guard_id: UUID
+    guard_name: str
+    attendances: List[AttendanceOut]
+    
