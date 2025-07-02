@@ -1,0 +1,57 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - welqo-network
+
+
+  api:
+    container_name: welqo-api
+    image: korkadiallo/welqo-api:v1
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DATABASE}
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    volumes:
+      - uploaded_logos:/app/uploaded_logos
+      - generated_reports:/app/generated_reports
+    networks:
+      - welqo-network
+  front:
+    container_name: welqo-front
+    image: korkadiallo/welqo-front:v1
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: "http://api:8000/api/v1"
+    networks:
+      - welqo-network
+
+volumes:
+  postgres_data:
+  uploaded_logos:
+  generated_reports:
+  
+networks:
+  welqo-network:
+    driver: bridge
