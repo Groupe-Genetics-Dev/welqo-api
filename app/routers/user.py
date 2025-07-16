@@ -20,12 +20,19 @@ async def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)])
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"L'utilisateur avec ce numéro de téléphone existe déjà."
             )
+        
+        if user.resident.lower() != "welqo":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La valeur du champ 'resident' est différent."
+            )
 
         new_user = User(
             name=user.name,
             password=hashed(user.password),
             phone_number=user.phone_number,
-            appartement=user.appartement
+            appartement=user.appartement,
+            resident="welqo"
         )
 
         db.add(new_user)
@@ -40,6 +47,7 @@ async def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)])
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur de base de données: {str(e)}"
         )
+
 
 @router.get("/users/me", response_model=UserOut)
 async def get_current_user(current_user: User = Depends(get_current_user)):

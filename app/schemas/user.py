@@ -8,13 +8,15 @@ class UserCreate(BaseModel):
     name: str
     password: str
     phone_number: str
-    appartement: str  
+    appartement: str
+    resident: str  
 
 class UserOut(BaseModel):
     id: UUID
     name: str
     phone_number: str
-    appartement: str 
+    appartement: str
+    resident: str 
     created_at: datetime
 
 

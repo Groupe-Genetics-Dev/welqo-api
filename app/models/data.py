@@ -19,6 +19,7 @@ class User(Base):
     phone_number = Column(String(255), nullable=False, unique=True)
     password = Column(String(255), nullable=False)
     appartement = Column(String(255), nullable=False)
+    resident = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
     form_data = relationship("FormData", back_populates="user")
