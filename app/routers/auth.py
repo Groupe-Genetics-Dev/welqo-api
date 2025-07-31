@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import  datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from app.config import settings
@@ -31,13 +31,19 @@ async def login_user(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"user_id": str(user.id), "user_name": user.name}, expires_delta=access_token_expires
+        data={
+            "user_id": str(user.id),
+            "user_name": user.name,
+            "residence_id": str(user.residence_id)  # ✅ residence_id ajouté
+        },
+        expires_delta=access_token_expires
     )
 
     return {
-        "access_token": access_token, 
-        "token_type": "bearer", 
-        "user_name": user.name
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_name": user.name,
+        "residence_id": str(user.residence_id)  # ✅ Ajouté dans la réponse
     }
 
 
@@ -54,7 +60,7 @@ async def login_guard(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Enregistrez l'heure de début de session
+    # Enregistre l'heure de début de session
     attendance = Attendance(
         start_time=datetime.now(),
         guard_id=guard.id
@@ -64,15 +70,21 @@ async def login_guard(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"guard_id": str(guard.id), "guard_name": guard.name},
+        data={
+            "guard_id": str(guard.id),
+            "guard_name": guard.name,
+            "residence_id": str(guard.residence_id)  # ✅ residence_id ajouté
+        },
         expires_delta=access_token_expires
     )
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_name": guard.name
+        "user_name": guard.name,
+        "residence_id": str(guard.residence_id)  # ✅ Ajouté dans la réponse
     }
+
 
 @router.post("/guard/logout")
 async def logout_guard(
@@ -106,14 +118,17 @@ async def login_owner(
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"owner_id": str(owner.id), "owner_name": owner.name},
+        data={
+            "owner_id": str(owner.id),
+            "owner_name": owner.name,
+            "residence_id": str(owner.residence_id)  # ✅ déjà présent
+        },
         expires_delta=access_token_expires
     )
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_name": owner.name
+        "user_name": owner.name,
+        "residence_id": str(owner.residence_id)  # ✅ déjà présent
     }
-
-

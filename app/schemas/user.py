@@ -9,7 +9,8 @@ class UserCreate(BaseModel):
     password: str
     phone_number: str
     appartement: str
-    resident: str  
+    resident: str
+    residence_name: str
 
 class UserOut(BaseModel):
     id: UUID

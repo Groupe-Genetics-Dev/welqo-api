@@ -9,6 +9,7 @@ from app.models.data import Owner, Report
 from app.schemas.owner import ForgotPasswordRequest, MessageResponse, OwnerCreate, OwnerOut, ResetPasswordRequest
 from app.postgres_connect import get_db
 from app.schemas.report import ReportOut
+from app.models.data import Residence
 from app.oauth2 import get_current_owner
 from app.utils import hashed
 
@@ -19,23 +20,30 @@ LOGO_DIR = "uploaded_logos"
 os.makedirs(LOGO_DIR, exist_ok=True)
 
 @router.post("/create-owner", response_model=OwnerOut)
-def create_owner(owner: OwnerCreate, 
-                 db: Session = Depends(get_db)):
-    
+def create_owner(owner: OwnerCreate, db: Session = Depends(get_db)):
     existing = db.query(Owner).filter(Owner.phone_number == owner.phone_number).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, 
                             detail="Numéro de téléphone déjà utilisé")
 
-    new_owner = Owner(**owner.model_dump())
-    new_owner.password = hashed(owner.password)
+    # ➕ Récupération de la résidence
+    residence = db.query(Residence).filter(Residence.name == owner.residence_name).first()
+    if not residence:
+        raise HTTPException(status_code=404, detail="Résidence non trouvée")
+
+    new_owner = Owner(
+        name=owner.name,
+        phone_number=owner.phone_number,
+        email=owner.email,
+        password=hashed(owner.password),
+        residence_id=residence.id
+    )
+
     db.add(new_owner)
     db.commit()
     db.refresh(new_owner)
 
     return new_owner
-
-
 @router.post("/upload-logo", response_model=OwnerOut)
 def upload_logo(
     file: UploadFile = File(...),

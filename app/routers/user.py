@@ -2,13 +2,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from uuid import UUID
 
 from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
-from app.schemas.user import  UserCreate, UserOut, ChangePassword
-from app.models.data import  User
+from app.schemas.user import UserCreate, UserOut, ChangePassword
+from app.models.data import User
+from app.models.data import Residence 
 from app.postgres_connect import get_db
-from app.utils import hashed,  verify
-from app.oauth2 import  get_current_user
+from app.utils import hashed, verify
+from app.oauth2 import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -18,13 +20,24 @@ async def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)])
         if db.query(User).filter_by(phone_number=user.phone_number).first():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"L'utilisateur avec ce numéro de téléphone existe déjà."
+                detail="L'utilisateur avec ce numéro de téléphone existe déjà."
             )
-        
+
         if user.resident.lower() != "welqo":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="La valeur du champ 'resident' est différent."
+                detail="La valeur du champ 'resident' est différente de 'welqo'."
+            )
+
+        # 🔍 Rechercher la résidence par nom (insensible à la casse)
+        residence = db.query(Residence).filter(
+            Residence.name.ilike(user.residence_name.strip())
+        ).first()
+
+        if not residence:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Résidence '{user.residence_name}' non trouvée."
             )
 
         new_user = User(
@@ -32,7 +45,8 @@ async def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)])
             password=hashed(user.password),
             phone_number=user.phone_number,
             appartement=user.appartement,
-            resident="welqo"
+            resident="welqo",
+            residence_id=residence.id  
         )
 
         db.add(new_user)
@@ -47,10 +61,10 @@ async def create_user(user: UserCreate, db: Annotated[Session, Depends(get_db)])
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur de base de données: {str(e)}"
         )
+    
 
-
-@router.get("/users/me", response_model=UserOut)
-async def get_current_user(current_user: User = Depends(get_current_user)):
+@router.get("/me", response_model=UserOut)
+async def get_current_user_profile(current_user: User = Depends(get_current_user)):
     return current_user
 
 
@@ -70,88 +84,32 @@ async def change_password(data: ChangePassword, db: Annotated[Session, Depends(g
 
 @router.post("/forgot-password", response_model=MessageResponse)
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    # Vérifiez si le numéro de téléphone existe dans la base de données
-    owner = db.query(User).filter(User.phone_number == request.phone_number).first()
-    if not owner:
+    user = db.query(User).filter(User.phone_number == request.phone_number).first()
+    if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Numéro de téléphone non trouvé")
-
     return {"message": "Numéro de téléphone valide. Veuillez saisir votre nouveau mot de passe."}
+
 
 @router.post("/reset-password", response_model=MessageResponse)
 def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    # Vérifiez si le numéro de téléphone existe dans la base de données
-    owner = db.query(User).filter(User.phone_number == request.phone_number).first()
-    if not owner:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+    user = db.query(User).filter(User.phone_number == request.phone_number).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Numéro de téléphone non trouvé")
 
-    # Vérifiez si les mots de passe correspondent
     if request.new_password != request.confirm_password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Les mots de passe ne correspondent pas")
 
-    # Réinitialiser le mot de passe
-    owner.password = hashed(request.new_password)
+    user.password = hashed(request.new_password)
     db.commit()
-    db.refresh(owner)
+    db.refresh(user)
 
     return {"message": "Mot de passe réinitialisé avec succès"}
 
 
-
 @router.get("/all", response_model=list[UserOut])
-async def get_all_users(db: Annotated[Session, Depends(get_db)]):
-    users = db.query(User).all()
+async def get_all_users(residence_id: UUID, db: Annotated[Session, Depends(get_db)]):
+    users = db.query(User).filter(User.residence_id == residence_id).all()
     return users
-
-# @router.post("/send-alert", status_code=status.HTTP_200_OK)
-# async def send_alert(
-#     alert_request: AlertRequest,
-#     db: Annotated[Session, Depends(get_db)],
-#     current_user: User = Depends(get_current_user),
-#     current_guard: Guard = Depends(get_current_guard)
-# ):
-#     try:
-#         if not current_user:
-#             raise HTTPException(
-#                 status_code=status.HTTP_401_UNAUTHORIZED,
-#                 detail="Seuls les utilisateurs peuvent envoyer une alerte."
-#             )
-
-#         # Récupérer tous les syndic (Owners) enregistrés
-#         owners = db.query(Owner).all()
-#         if not owners:
-#             raise HTTPException(
-#                 status_code=status.HTTP_404_NOT_FOUND,
-#                 detail="Aucun syndic trouvé pour recevoir l'alerte."
-#             )
-
-#         if not current_guard:
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail="Aucun gardien connecté au moment de l'envoi."
-#             )
-
-#         # Liste des destinataires : 1 gardien connecté + tous les syndics
-#         recipients = [current_guard] + owners
-
-#         for recipient in recipients:
-#             send_alert_email(
-#                 to=recipient.email,
-#                 name=recipient.name,
-#                 role=recipient.__class__.__name__,
-#                 resident_name=current_user.name,
-#                 resident_phone=current_user.phone_number,
-#                 resident_appartement=current_user.appartement,
-#                 alert_details=alert_request.alert_details
-#             )
-
-#         return {"message": "Alertes envoyées avec succès."}
-
-#     except SQLAlchemyError as e:
-#         db.rollback()
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Erreur de base de données: {str(e)}"
-#         )
 

@@ -12,14 +12,15 @@ class GuardBase(BaseModel):
 
 class GuardCreate(GuardBase):
     password: str
+    residence_name: str
 
     class Config:
         from_attributes = True
-        orm_mode = True
 
 class GuardOut(GuardBase):
     id: UUID
     created_at: datetime
+    residence_id: UUID 
 
     class Config:
         from_attributes = True

@@ -2,7 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
-from app.schemas.qrcode import GuardQRScanOut, QRScanRequest, QRScanResponse, QRScanData, UserInfo, VisitorInfo, QRConfirmRequest, QRConfirmResponse
+
+from app.schemas.qrcode import (
+    GuardQRScanOut,
+    QRScanRequest,
+    QRScanResponse,
+    QRScanData,
+    UserInfo,
+    VisitorInfo,
+    QRConfirmRequest,
+    QRConfirmResponse
+)
 from app.models.data import FormData, Guard, GuardQRScan
 from app.postgres_connect import get_db
 from app.oauth2 import get_current_guard
@@ -26,7 +36,6 @@ async def scan_qr_code(
     if not form.user:
         return QRScanResponse(valid=False, message="Données utilisateur manquantes")
 
-    # Vérifier si le QR code a déjà été scanné et confirmé ou rejeté
     existing_scan = db.query(GuardQRScan).filter(
         GuardQRScan.form_data_id == qr_scan.form_id,
         GuardQRScan.confirmed.isnot(None)
@@ -103,7 +112,9 @@ async def get_scan_history(
     current_guard: Guard = Depends(get_current_guard),
     limit: int = 50
 ):
-    scans = db.query(GuardQRScan).filter(GuardQRScan.guard_id == current_guard.id).order_by(GuardQRScan.scanned_at.desc()).limit(limit).all()
+    scans = db.query(GuardQRScan).filter(
+        GuardQRScan.guard_id == current_guard.id
+    ).order_by(GuardQRScan.scanned_at.desc()).limit(limit).all()
 
     return [GuardQRScanOut.from_orm_with_details(scan) for scan in scans]
 
@@ -138,3 +149,45 @@ async def get_guard_stats(
         "guard_name": getattr(current_guard, 'name', "Gardien")
     }
 
+@router.get("/residence/scans", response_model=List[GuardQRScanOut])
+async def get_residence_scans(
+    db: Session = Depends(get_db),
+    current_guard: Guard = Depends(get_current_guard),
+    limit: int = 50
+):
+    scans = db.query(GuardQRScan).join(Guard).filter(
+        Guard.residence_id == current_guard.residence_id
+    ).order_by(GuardQRScan.scanned_at.desc()).limit(limit).all()
+
+    return [GuardQRScanOut.from_orm_with_details(scan) for scan in scans]
+
+@router.get("/residence/stats", response_model=dict)
+async def get_residence_stats(
+    db: Session = Depends(get_db),
+    current_guard: Guard = Depends(get_current_guard)
+):
+    today = datetime.now().date()
+
+    today_scans = db.query(GuardQRScan).join(Guard).filter(
+        Guard.residence_id == current_guard.residence_id,
+        GuardQRScan.scanned_at >= today
+    ).count()
+
+    today_approved = db.query(GuardQRScan).join(Guard).filter(
+        Guard.residence_id == current_guard.residence_id,
+        GuardQRScan.scanned_at >= today,
+        GuardQRScan.confirmed == True
+    ).count()
+
+    today_denied = db.query(GuardQRScan).join(Guard).filter(
+        Guard.residence_id == current_guard.residence_id,
+        GuardQRScan.scanned_at >= today,
+        GuardQRScan.confirmed == False
+    ).count()
+
+    return {
+        "today_scans": today_scans,
+        "today_approved": today_approved,
+        "today_denied": today_denied,
+        "residence_id": str(current_guard.residence_id)
+    }

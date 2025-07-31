@@ -8,6 +8,7 @@ class OwnerCreate(BaseModel):
     phone_number: str
     email: EmailStr
     password: str
+    residence_name: str 
 
 class OwnerOut(BaseModel):
     id: UUID
@@ -15,6 +16,7 @@ class OwnerOut(BaseModel):
     phone_number: str
     logo_path: Optional[str] = None
     created_at: datetime
+    residence_id: UUID
 
     class Config:
         from_attributes = True

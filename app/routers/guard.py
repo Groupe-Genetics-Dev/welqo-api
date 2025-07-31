@@ -8,6 +8,7 @@ from app.oauth2 import get_current_guard
 from app.schemas.guard import AttendanceOut, GuardAttendanceOut, GuardCreate, GuardOut, GuardQRScanOut, GuardUpdate
 from app.models.data import Guard, GuardQRScan
 from app.postgres_connect import get_db
+from app.models.data import Residence
 from app.schemas.owner import ForgotPasswordRequest, MessageResponse, ResetPasswordRequest
 from app.utils import hashed
 
@@ -24,23 +25,33 @@ async def create_guard(guard: GuardCreate, db: Session = Depends(get_db)):
             detail="Un gardien avec ce numéro de téléphone existe déjà."
         )
 
+    # Recherche de la résidence par nom
+    residence = db.query(Residence).filter(Residence.name == guard.residence_name).first()
+    if not residence:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"La résidence '{guard.residence_name}' est introuvable."
+        )
+
     # Hachez le mot de passe avant de le stocker
     hashed_password = hashed(guard.password)
 
-    # Créez un nouveau gardien
+    # Créez un nouveau gardien avec association à la résidence
     new_guard = Guard(
         name=guard.name,
         password=hashed_password,
         phone_number=guard.phone_number,
-        email=guard.email
+        email=guard.email,
+        residence_id=residence.id  # ← l'association se fait ici
     )
 
-    # Ajoutez le nouveau gardien à la base de données
     db.add(new_guard)
     db.commit()
     db.refresh(new_guard)
 
     return new_guard
+
+
 
 
 @router.get("/all", response_model=List[GuardOut])
