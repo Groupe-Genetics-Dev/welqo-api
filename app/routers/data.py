@@ -51,6 +51,7 @@ async def create_form_data(
     new_form = FormData(
         name=form_data.name,
         phone_number=form_data.phone_number,
+        apartment_number=form_data.apartment_number,  # <-- AJOUT
         qr_code_data=qr_code_base64,
         created_at=created_at,
         expires_at=expires_at,
@@ -62,6 +63,7 @@ async def create_form_data(
     db.refresh(new_form)
 
     return new_form
+
 
 @router.get("/user-forms", response_model=List[FormDataResponse])
 async def get_user_forms(

@@ -55,6 +55,7 @@ class FormData(Base):
     name = Column(String(255), nullable=False)
     phone_number = Column(String(50), nullable=False, unique=True)
     qr_code_data = Column(Text, nullable=True)
+    apartment_number = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     expires_at = Column(DateTime)
     duration_minutes = Column(Integer)

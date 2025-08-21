@@ -10,6 +10,7 @@ class FormDataCreate(BaseModel):
     name: str
     phone_number: str
     duration_minutes: int
+    apartment_number: Optional[str] = None  # <-- AJOUT ICI
 
     @field_validator('phone_number')
     def validate_phone(cls, value: str) -> str:
@@ -21,12 +22,14 @@ class FormDataCreate(BaseModel):
             if re.match(pattern, value):
                 return value
 
-        raise ValueError('Numéro de téléphone invalide. Veuillez inclure l\'indicatif du pays.')
+        raise ValueError("Numéro de téléphone invalide. Veuillez inclure l'indicatif du pays.")
+
 
 class FormDataResponse(BaseModel):
     id: uuid.UUID
     name: str
     phone_number: str
+    apartment_number: Optional[str]  # <-- AJOUT ICI
     qr_code_data: Optional[str]
     created_at: datetime
     expires_at: datetime
@@ -35,10 +38,12 @@ class FormDataResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class UserInfo(BaseModel):
     name: str
     phone_number: str
     appartement: str
+
 
 class VisitorInfo(BaseModel):
     name: str
@@ -52,16 +57,17 @@ class QRValidationData(BaseModel):
     expires_at: datetime
 
 
-
 class QRValidationResponse(BaseModel):
     valid: bool
     message: str
     data: Optional[QRValidationData] = None
 
+
 class FormDataUpdate(BaseModel):
     name: Optional[str] = None
     phone_number: Optional[str] = None  
     duration_minutes: Optional[int] = None
+    apartment_number: Optional[str] = None  # <-- AJOUT ICI
 
     @field_validator('phone_number')  
     def validate_phone_update(cls, value: Optional[str]) -> Optional[str]:
@@ -76,5 +82,5 @@ class FormDataUpdate(BaseModel):
             if re.match(pattern, value):
                 return value
 
-        raise ValueError('Numéro de téléphone invalide. Veuillez inclure l\'indicatif du pays.')
-    
+        raise ValueError("Numéro de téléphone invalide. Veuillez inclure l'indicatif du pays.")
+
