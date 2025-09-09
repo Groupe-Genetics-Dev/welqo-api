@@ -61,9 +61,9 @@ def delete_residence(residence_id: UUID, db: Session = Depends(get_db)):
     db.delete(residence)
     db.commit()
 
-
+# ✅ Récupérer les résidences d’un propriétaire
 @router.get("/owner/{owner_id}", response_model=list[ResidenceOut])
 def get_residences_by_owner(owner_id: UUID, db: Session = Depends(get_db)):
-    residences = db.query(Residence).filter(Residence.owner_id == owner_id).all()
+    residences = db.query(Residence).join(Residence.owners).filter_by(id=owner_id).all()
     return residences
 
